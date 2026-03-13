@@ -15,6 +15,9 @@ cache/
 checkpoints/
 core
 
+# Token
+token.json
+
 # Miniconda
 *.sh
 
