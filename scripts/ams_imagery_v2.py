@@ -165,7 +165,7 @@ def acquire_imagery_and_masks_parallel(max_workers=8):
 
     print("Loading geographic vector data...")
     ams_boundary = gpd.read_file(boundary_path).to_crs(28992)
-    parking_gdf = gpd.read_file(parking_path).to_crs(28992)
+    parking_gdf = gpd.read_file(parking_path, layer="combined").to_crs(28992)
     
     minx, miny, maxx, maxy = ams_boundary.total_bounds
     chip_size_px = 512
