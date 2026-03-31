@@ -1,0 +1,31 @@
+name: parking
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.12
+  - git
+  - pip
+  # Geospatial data handling
+  - rasterio
+  - geopandas
+  - shapely
+  - fiona
+  # Utility and augmentation
+  - numpy
+  - scipy
+  - scikit-image
+  - albumentations
+  - tqdm
+  # Visualization
+  - matplotlib
+  - folium
+  - ipywidgets
+  # Deep learning (PyTorch with CUDA 12.6 via pip)
+  - pip:
+      - --extra-index-url https://download.pytorch.org/whl/cu126
+      - torch==2.7.0
+      - torchvision
+      - torchaudio
+      # SAM3 from GitHub with extras (notebooks, train, dev)
+      - sam3[notebooks,train,dev] @ git+https://github.com/facebookresearch/sam3.git
