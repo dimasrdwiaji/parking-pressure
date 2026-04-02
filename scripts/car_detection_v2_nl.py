@@ -62,9 +62,9 @@ def group_tiles(image_paths):
     for path in image_paths:
         basename = os.path.basename(path).replace(".jpg", "")
         # Filename format: tile_col_tile_row.jpg (no rel_col/rel_row)
-        parts = basename.split("_")
-        col = int(parts[-2])
-        row = int(parts[-1])
+        parts  = basename.rsplit("_", 4)
+        col    = int(parts[1])   # actual global tile column
+        row    = int(parts[2])   # actual global tile row
         group_key = (col // 2, row // 2)
         groups[group_key][(col, row)] = path
 
