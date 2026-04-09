@@ -35,7 +35,7 @@ TILE_GROUND_SIZE = RESOLUTION * TILE_SIZE_PX
 DINO_TEXT_PROMPT = "small car. parked car. vehicle in parking lot. top view car. van. truck."
 
 # Detection thresholds for Grounding DINO
-BOX_THRESHOLD  = 0.3   # confidence threshold for box detection
+BOX_THRESHOLD  = 0.15   # confidence threshold for box detection
 TEXT_THRESHOLD = 0.3   # text similarity threshold for label assignment
 
 # SAM mask confidence threshold
