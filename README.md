@@ -98,6 +98,6 @@ Output: GeoParquet of cluster polygons
 ## To-do list
 1. Standardize image request, particularly images delivered via WMTS. Script would run multiple instance, each will download data for a country.
 
-2. Try other detector model. SAM3 still miss cars, likely due to image size. Try DINO or YOLO world (quick test on playground shows that YOLO, while faster, perform poorly compared to SAM3).
+2. Try other detector model. SAM3 still miss cars, likely due to image size. Try DINO or YOLO world (quick test on playground shows that YOLO, while faster, perform poorly compared to SAM3). DONE.
 
-3. Estimate parking area via OSM residual. Get OSM data per grid, remove non-parking footprint (buildings, vegetation, water body, buffered roads, etc). The residual becomes the estimated parking area.
+3. Estimate parking area via OSM residual. Get OSM data per grid, remove non-parking footprint (buildings, vegetation, water body, buffered roads, etc). The residual becomes the estimated parking area. NEEDS IMPROVEMENT. Refer to scripts/pressure_residual.py
