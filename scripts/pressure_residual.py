@@ -10,20 +10,20 @@ from tqdm import tqdm
 # -----------------------------------------------
 # Config
 # -----------------------------------------------
-OSM_PBF         = "data/osm_raw/netherlands-latest.osm.pbf"
+OSM_PBF = "data/osm_raw/netherlands-latest.osm.pbf"
 ROAD_BUFFER_OUT = "data/osm_filtered/nl/nl_road_buffer.parquet"
 
-# Cached intermediate outputs — skip extraction if already saved
-BUILDINGS_OUT   = "data/osm_filtered/nl/nl_buildings.parquet"
-VEGETATION_OUT  = "data/osm_filtered/nl/nl_vegetation.parquet"
-WATER_OUT       = "data/osm_filtered/nl/nl_water.parquet"
+# Cached outputs and skip extraction if already saved
+BUILDINGS_OUT = "data/osm_filtered/nl/nl_buildings.parquet"
+VEGETATION_OUT = "data/osm_filtered/nl/nl_vegetation.parquet"
+WATER_OUT = "data/osm_filtered/nl/nl_water.parquet"
 
-# Final output — one polygon per grid cell representing the residual parking area
-RESIDUAL_OUT    = "data/pressure_estimation/nl_residual_areas.parquet"
+# Final output (one polygon per grid cell showing the residual parking area)
+RESIDUAL_OUT = "data/pressure_estimation/nl_residual_areas.parquet"
 
 # Grid to define the spatial extent and cell boundaries
-GRID_PARQUET    = "data/grid_500m_filtered.parquet"
-COUNTRY_CODE    = "NL"
+GRID_PARQUET = "data/grid_500m_filtered.parquet"
+COUNTRY_CODE = "NL"
 
 CRS = "EPSG:28992"
 
@@ -44,26 +44,18 @@ def save_if_not_exists(gdf, path, label="file"):
 # -----------------------------------------------
 class PolygonFeatureHandler(osmium.SimpleHandler):
     """
-    Extracts closed polygon features from OSM PBF using the area() callback.
-
-    Why area() instead of way()?
-    osmium's area() callback handles both:
-      - Simple closed ways (e.g. a single building polygon)
-      - Multipolygon relations (e.g. a large forest mapped as a relation
-        with multiple outer and inner rings)
-    Using way() would miss all relation-based features, which are common
-    for large parks, forests, and water bodies.
-
+    Extracts closed polygon features from OSM PBF.
     accepted_tags: dict of { tag_key: set_of_values_or_None }
       - None as the value set means accept any value for that key.
       - e.g. {"building": None} accepts building=yes, building=house, etc.
       - e.g. {"landuse": {"forest", "grass"}} accepts only those two values.
     """
+    # Initialize
     def __init__(self, accepted_tags):
         super().__init__()
         self.accepted_tags = accepted_tags
         self.polygons      = []
-
+    
     def _matches(self, tags):
         for key, values in self.accepted_tags.items():
             val = tags.get(key)
@@ -96,7 +88,7 @@ class PolygonFeatureHandler(osmium.SimpleHandler):
 
 def extract_osm_polygons(osm_pbf, accepted_tags, out_path, label, crs):
     """
-    Extracts polygon features from OSM PBF matching the given tags.
+    Extracts polygon features from OSM PBF matching the specified tags.
     Saves as GeoParquet and loads from cache on subsequent runs.
     """
     if os.path.exists(out_path):
@@ -110,7 +102,8 @@ def extract_osm_polygons(osm_pbf, accepted_tags, out_path, label, crs):
     if not handler.polygons:
         print(f"  No {label} features found.")
         return gpd.GeoDataFrame(geometry=[], crs="EPSG:4326").to_crs(crs)
-
+    
+    # WIP: make it usable for multiple countries
     gdf = gpd.GeoDataFrame(
         geometry=handler.polygons, crs="EPSG:4326"
     ).to_crs(crs)
@@ -129,10 +122,10 @@ def load_non_parking_features(osm_pbf, road_buffer_path, crs):
     grid cell area to produce the residual parking area.
 
     Layers:
-      Buildings:   building=* — any mapped structure
-      Vegetation:  landuse and natural tags for green areas
-      Water:       natural=water, waterway=riverbank, landuse=reservoir etc.
-      Roads:       pre-computed buffers from parking_pressure.py
+      Buildings: building=* — any mapped structure
+      Vegetation: landuse and natural tags for green areas
+      Water: natural=water, waterway=riverbank, landuse=reservoir etc.
+      Roads: previously-made road buffers from parking_pressure.py
 
     Note on tag selection:
       We are intentionally conservative, as in we only subtract features that are
@@ -194,26 +187,22 @@ def load_non_parking_features(osm_pbf, road_buffer_path, crs):
 def compute_residual(grid, buildings, vegetation, water, roads):
     """
     For each grid cell, subtracts all non-parking feature polygons to produce
-    the residual area — the space left over that is assumed to be available
+    the residual area, the space left over that is assumed to be available
     for parking.
 
     Process per cell:
-      1. Find all features from each layer that intersect the cell (spatial index)
-      2. Clip each intersecting feature to the cell boundary
-      3. Union all clipped features into one mask polygon
-      4. Subtract the mask from the cell polygon
-      5. Store the residual geometry and its area
+    1. Find all features from each layer that intersect the cell (spatial index)
+    2. Clip each intersecting feature to the cell boundary
+    3. Union all clipped features into one mask polygon
+    4. Subtract the mask from the cell polygon
+    5. Store the residual geometry and its area
 
     The output is a GeoDataFrame with one row per grid cell, where the geometry
-    is the residual polygon. This can be opened directly in QGIS to visually
-    inspect whether the subtraction looks correct before trusting the numbers.
+    is the residual polygon.
 
-    Why cell-by-cell instead of a single overlay?
-      A single gpd.overlay() on 135,000 cells against all OSM features would
-      require dissolving the entire feature set first, which is extremely memory
-      intensive. The cell-by-cell approach uses spatial indexing (the .intersects
-      call uses STRtree internally) and processes features locally, keeping
-      memory usage bounded.
+    Cell-by-cell vs single overlay
+    Single overlay cause a lot of memories, so process is likely to freeze or keeps executing. Cell-by-cell would
+    avoid it.
     """
     print("Computing residual area per grid cell...")
 
@@ -230,13 +219,14 @@ def compute_residual(grid, buildings, vegetation, water, roads):
     )
 
     # Build spatial index once for the full feature set
-    # geopandas uses STRtree internally for .sindex
     feature_sindex = all_features.sindex
-
-    residual_geoms  = []
-    residual_areas  = []
-    cell_areas      = []
-
+    
+    # Prepare variable to store geometry and area
+    residual_geoms = []
+    residual_areas = []
+    cell_areas = []
+    
+    # Iterate over grid
     for idx, cell in tqdm(grid.iterrows(), total=len(grid),
                           desc="  Subtracting features"):
         cell_geom = cell.geometry
@@ -265,12 +255,12 @@ def compute_residual(grid, buildings, vegetation, water, roads):
             cell_areas.append(cell_area)
             continue
 
-        mask     = unary_union(clipped.values)
+        mask = union_all(clipped.values)
         residual = cell_geom.difference(mask)
 
         # Ensure valid geometry
         if residual.is_empty or not residual.is_valid:
-            residual      = cell_geom
+            residual = cell_geom
             residual_area = cell_area
         else:
             residual_area = residual.area
@@ -284,7 +274,7 @@ def compute_residual(grid, buildings, vegetation, water, roads):
             "GRD_ID":           grid["GRD_ID"].values,
             "cell_area_m2":     cell_areas,
             "residual_area_m2": residual_areas,
-            # Fraction of cell area that is residual — useful for QA
+            # Fraction of cell area that is residual. Used to see if results make sense or not
             "residual_fraction": np.array(residual_areas) / np.array(cell_areas),
             "geometry":         residual_geoms
         },
@@ -316,7 +306,7 @@ def main():
     # Compute residual area per cell
     residual_gdf = compute_residual(grid, buildings, vegetation, water, roads)
 
-    # Save — this is the geometry you open in QGIS to inspect the subtraction
+    # Save
     save_if_not_exists(residual_gdf, RESIDUAL_OUT, "residual areas")
 
     print("\nSummary:")
