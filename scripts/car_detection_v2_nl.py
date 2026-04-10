@@ -26,7 +26,7 @@ TILE_GROUND_SIZE = RESOLUTION * TILE_SIZE_PX
 
 PROMPTS              = ["car", "van", "truck"]
 CHUNK_SIZE           = 5000   # number of 2x2 groups per chunk
-CONFIDENCE_THRESHOLD = 0.5
+CONFIDENCE_THRESHOLD = 0.4 # TEST
 BATCH_SIZE           = 8
 NUM_WORKERS          = 2
 
@@ -34,7 +34,7 @@ IMG_DIR       = "data/imagery/nl/rgb"
 OUTPUT_DIR    = "data/imagery/nl/pred"
 CHUNKS_DIR    = os.path.join(OUTPUT_DIR, "chunks")
 PROGRESS_FILE = os.path.join(OUTPUT_DIR, "progress.txt")
-FINAL_OUTPUT  = os.path.join(OUTPUT_DIR, "detected_cars_final.parquet")
+FINAL_OUTPUT  = os.path.join(OUTPUT_DIR, "detected_cars_ch1.parquet")
 
 
 # -----------------------------------------------
@@ -277,6 +277,7 @@ def main():
             group_keys[i : i + CHUNK_SIZE]
             for i in range(0, len(group_keys), CHUNK_SIZE)
         ]
+        chunks = chunks[:1] # TEST FIRST CHUNK
         print(f"Processing {len(chunks)} chunks of up to {CHUNK_SIZE} groups each.")
 
         for chunk_idx, chunk_keys in enumerate(chunks):
@@ -321,7 +322,7 @@ def main():
     )
     print(f"Total points before final dedup: {len(combined):,}")
 
-    final_df = deduplicate(combined, tolerance_meters=1.5)
+    final_df = deduplicate(combined, tolerance_meters=1.2)
     print(f"Final distinct car count: {len(final_df):,}")
 
     geometry = [Point(xy) for xy in zip(final_df["x"], final_df["y"])]
